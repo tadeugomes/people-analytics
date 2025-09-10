@@ -1,0 +1,16 @@
+{
+  "thresholds": { "low": 0.6, "high": 0.8 },
+  "leadership_keywords": [
+    "gerente", "diretor", "coordenador", "supervisor", "líder", "gestor",
+    "head", "chief", "c-level", "vp", "presidente", "manager", "director", "lead"
+  ],
+  "leadership_column_hints": [
+    "cargo", "função", "funcao", "job", "title", "posição", "posicao",
+    "nível", "nivel", "senioridade", "lead", "gestão", "gestao",
+    "role", "position", "level", "seniority"
+  ],
+  "leadership_columns": ["Cargo", "Título do Cargo"],
+  "company_name": "Empresa Demo",
+  "company_logo": "./docs/logo.png"
+}
+
