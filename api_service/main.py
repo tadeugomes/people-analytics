@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from fastapi import FastAPI, UploadFile, File, Form
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse, JSONResponse, HTMLResponse, FileResponse
 import tempfile
 import os
 from typing import Optional
@@ -15,6 +15,30 @@ app = FastAPI(title="Relatório de Diversidade (Excel)")
 @app.get("/")
 def root():
     return {"status": "ok", "service": "diversity-excel", "version": "1.0"}
+
+
+@app.get("/ui", response_class=HTMLResponse)
+def ui_page():
+    # Serve the repository root index.html to be the single UI
+    try:
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+        index_path = os.path.join(repo_root, 'index.html')
+        with open(index_path, 'r', encoding='utf-8') as f:
+            return HTMLResponse(f.read())
+    except Exception as e:
+        return HTMLResponse(f"<h1>Erro ao carregar UI</h1><pre>{e}</pre>", status_code=500)
+
+
+@app.get("/download-model")
+def download_model():
+    try:
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+        model_path = os.path.join(repo_root, 'Diversidade', 'Caso 1 - Variáveis categóricas', 'dataset.csv')
+        if not os.path.exists(model_path):
+            return JSONResponse(status_code=404, content={"error": "Modelo não encontrado"})
+        return FileResponse(model_path, media_type='text/csv', filename='modelo_dados_exemplo.csv')
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 @app.post("/process")

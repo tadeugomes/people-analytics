@@ -10,6 +10,11 @@ COPY python_pipeline/ ./python_pipeline/
 COPY excel_only/ ./excel_only/
 COPY api_service/main.py ./main.py
 
-EXPOSE 8080
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Copy UI and sample dataset used by endpoints (/ui and /download-model)
+COPY index.html ./
+COPY Diversidade/ ./Diversidade/
 
+EXPOSE 8080
+# Honor Cloud Run PORT env var if present
+ENV PORT=8080
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT}"]
