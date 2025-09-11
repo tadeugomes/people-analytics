@@ -1,0 +1,45 @@
+# Files/directories to skip when uploading to Cloud Build
+
+# VCS
+.git/
+.gitignore
+
+# Python env/build artifacts
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+
+# Editors/OS
+.DS_Store
+.idea/
+.vscode/
+.history/
+
+# Caches/logs/temp
+.cache/
+*.log
+*.tmp
+*.swp
+.uvicorn.log
+.uvicorn.pid
+
+# Generated local outputs
+output_*.xlsx
+
+# Keep these in build context (explicitly listed to document intent)
+!index.html
+!Dockerfile
+!api_service/**
+!core/**
+!python_pipeline/**
+!excel_only/**
+!Diversidade/**
+!scripts/**
+!DEPLOY.md
+!build_meta.json
+

@@ -4,6 +4,7 @@ from fastapi.responses import StreamingResponse, JSONResponse, HTMLResponse, Fil
 import tempfile
 import os
 from typing import Optional
+import json
 
 import pandas as pd
 
@@ -12,19 +13,56 @@ from python_pipeline.diversity_analyzer import DiversityAnalyzer
 app = FastAPI(title="Relatório de Diversidade (Excel)")
 
 
+def _get_build_meta():
+    commit = "unknown"
+    build_time = "unknown"
+    try:
+        here = os.path.dirname(os.path.abspath(__file__))
+        candidates = [
+            os.path.join(here, 'build_meta.json'),
+            os.path.abspath(os.path.join(here, os.pardir, 'build_meta.json')),
+        ]
+        for path in candidates:
+            if os.path.exists(path):
+                with open(path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    commit = str(data.get('commit', commit))
+                    build_time = str(data.get('build_time', build_time))
+                    break
+    except Exception:
+        pass
+    return commit, build_time
+
+
 @app.get("/")
 def root():
-    return {"status": "ok", "service": "diversity-excel", "version": "1.0"}
+    commit, build_time = _get_build_meta()
+    return {
+        "status": "ok",
+        "service": "diversity-excel",
+        "version": "1.0",
+        "commit": commit,
+        "build_time": build_time,
+    }
 
 
 @app.get("/ui", response_class=HTMLResponse)
 def ui_page():
-    # Serve the repository root index.html to be the single UI
+    """Serve o index.html do projeto (funciona local e no container)."""
     try:
-        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
-        index_path = os.path.join(repo_root, 'index.html')
-        with open(index_path, 'r', encoding='utf-8') as f:
-            return HTMLResponse(f.read())
+        here = os.path.dirname(os.path.abspath(__file__))
+        candidates = [
+            os.path.join(here, 'index.html'),                # no container: /app/index.html
+            os.path.abspath(os.path.join(here, os.pardir, 'index.html')),  # local: repo raiz
+        ]
+        for path in candidates:
+            if os.path.exists(path):
+                with open(path, 'r', encoding='utf-8') as f:
+                    return HTMLResponse(f.read())
+        return HTMLResponse(
+            "<h1>Erro ao carregar UI</h1><pre>index.html não encontrado</pre>",
+            status_code=500,
+        )
     except Exception as e:
         return HTMLResponse(f"<h1>Erro ao carregar UI</h1><pre>{e}</pre>", status_code=500)
 
@@ -32,10 +70,33 @@ def ui_page():
 @app.get("/download-model")
 def download_model():
     try:
-        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
-        model_path = os.path.join(repo_root, 'Diversidade', 'Caso 1 - Variáveis categóricas', 'dataset.csv')
-        if not os.path.exists(model_path):
-            return JSONResponse(status_code=404, content={"error": "Modelo não encontrado"})
+        here = os.path.dirname(os.path.abspath(__file__))
+        repo_root = os.path.abspath(os.path.join(here, os.pardir))
+        # 1) Caminho preferido no container: /app/dataset.csv (copiado no Dockerfile)
+        direct_path = os.path.join(here, 'dataset.csv')
+        if os.path.exists(direct_path):
+            return FileResponse(direct_path, media_type='text/csv', filename='modelo_dados_exemplo.csv')
+        # Tenta caminho conhecido primeiro
+        preferred = os.path.join(repo_root, 'Diversidade', 'Caso 1 - Variáveis categóricas', 'dataset.csv')
+        model_path = preferred if os.path.exists(preferred) else None
+        # Se não achar (p. ex., diferenças de normalização de unicode), busca por nome do arquivo
+        if not model_path:
+            for root, _dirs, files in os.walk(os.path.join(repo_root, 'Diversidade')):
+                if 'dataset.csv' in files:
+                    model_path = os.path.join(root, 'dataset.csv')
+                    break
+        if not model_path or not os.path.exists(model_path):
+            # Fallback: gerar um CSV de exemplo mínimo em memória
+            import io
+            sample_csv = io.StringIO()
+            sample_csv.write("genero,raca,setor,cargo\n")
+            sample_csv.write("Feminino,Branca,Vendas,Analista\n")
+            sample_csv.write("Masculino,Preta,Operações,Técnico\n")
+            sample_csv.write("Feminino,Parda,Financeiro,Coordenadora\n")
+            sample_csv.seek(0)
+            return StreamingResponse(sample_csv, media_type='text/csv', headers={
+                "Content-Disposition": "attachment; filename=modelo_dados_exemplo.csv"
+            })
         return FileResponse(model_path, media_type='text/csv', filename='modelo_dados_exemplo.csv')
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
